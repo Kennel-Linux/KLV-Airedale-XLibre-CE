@@ -324,6 +324,18 @@ chmod 755 /lib
 cd /usr/share/applications
 sed -i 's/^Exec=/&sudo -uspot /' octoxbps.desktop
 sed -i 's/^Exec=/&sudo -uspot /' octoxbps-notifier.desktop
+
+# Copy .desktop files to /root/.local/share/applications and add run-as-spot to the Exec command
+#
+##mkdir -p /root/.local/share/applications
+##cp /usr/share/applications/octoxbps.desktop  /root/.local/share/applications/octoxbps.desktop
+##cp /usr/share/applications/octoxbps-notifier.desktop  /root/.local/share/applications/octoxbps-notifier.desktop
+
+##cd /root/.local/share/applications/
+##sed -i 's/^Exec=/&run-as-spot /' octoxbps.desktop
+##sed -i 's/^Exec=/&run-as-spot /' octoxbps-notifier.desktop
+##cp /root/.local/share/applications/octoxbps-notifier.desktop /etc/xdg/autostart/octoxbps-notifier.desktop
+
 cp /usr/share/applications/thunar.desktop /usr/share/applications/thunar-spot.desktop
 sed -i 's/^Exec=/&sudo -uspot /' thunar-spot.desktop
 sed -i 's/^Name=/&spot-/' thunar-spot.desktop
