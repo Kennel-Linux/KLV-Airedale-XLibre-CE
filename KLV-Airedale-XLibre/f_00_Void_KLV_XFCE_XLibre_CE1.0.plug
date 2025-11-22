@@ -1,5 +1,5 @@
 # f_00_Void_KLV_XFCE_XLibre_CE1.0.plug
-# version="1.0.0"; revision="-CE10"
+# version="1.0.0"; revision="-CE-1.0"
 # Kennel Linux Void outfitted with a xfce4 desktop and no kernel **uses puppy linux kernel**
 # Creation date 21february2024; Revision date: 
 # Copyright Kennel Linux team; Licence MIT
@@ -77,11 +77,11 @@ xbps-alternatives --set bash
 ## --------------------------------------------------------------------------
 ## XLibre server, xfce4 Desktop
 
-xbps-install -y xfce4 xfce4-panel xfce4-plugins compton
+xbps-install -y xfce4 xfce4-panel xfce4-plugins
 xbps-install -y gvfs yad tzutils dialog gettext cpupower
 xbps-install -y gvfs-smb gvfs-mtp gvfs-cdda xdotool
 xbps-install -y gftp rox geany mtpaint xfce4-screenshooter
-xbps-install -y octoxbps fox guvcview putty smplayer
+xbps-install -y octoxbps fox guvcview putty smplayer mpv
 xbps-install -y e2fsprogs yelp gparted xhost pfetch
 xbps-install -y dosfstools mtools syslinux cherrytree galculator
 xbps-install -y squashfs-tools wget leafpad xmessage
@@ -96,12 +96,37 @@ ln -s /usr/share/fontconfig/conf.avail/70-no-bitmaps.conf /etc/fonts/conf.d/
 xbps-reconfigure -f fontconfig
 
 # System Audio/Multimedia /wireplumber
-echo pipewire wireplumber alsa-pipewire pavucontrol pamixer qpwgraph ffmpeg mpv \
+echo pipewire wireplumber alsa-pipewire pavucontrol pamixer qpwgraph ffmpeg \
 | xargs -n1 xbps-install -Sy
+
+
+# disable pulseaudio autostart
+mv /etc/xdg/autostart/pulseaudio.desktop /etc/xdg/autostart/pulseaudio.desktop.bak
+
+# symlink pipewire.desktop launcher in /etc/xdg/autostart/
+ln -s /usr/share/applications/pipewire.desktop /etc/xdg/autostart/pipewire.desktop
+
+# symlink pipewire-pulse.desktop launcher in /etc/xdg/autostart/
+ln -s /usr/share/applications/pipewire-pulse.desktop /etc/xdg/autostart/pipewire-pulse.desktop
+
 mkdir -p /etc/pipewire/pipewire.conf.d
 ln -s /usr/share/examples/wireplumber/10-wireplumber.conf /etc/pipewire/pipewire.conf.d/
 mkdir -p /etc/pipewire/pipewire.conf.d
 ln -s /usr/share/examples/pipewire/20-pipewire-pulse.conf /etc/pipewire/pipewire.conf.d/
+
+mkdir -p /etc/alsa/conf.d
+ln -s /usr/share/alsa/alsa.conf.d/50-pipewire.conf /etc/alsa/conf.d
+ln -s /usr/share/alsa/alsa.conf.d/99-pipewire-default.conf /etc/alsa/conf.d
+
+# for root desktop
+mkdir -p /root/.config/pipewire/pipewire.conf.d
+ln -s /usr/share/examples/wireplumber/10-wireplumber.conf /root/.config/pipewire/pipewire.conf.d/
+ln -s /usr/share/examples/pipewire/20-pipewire-pulse.conf /root/.config/pipewire/pipewire.conf.d/
+
+# for spot desktop
+mkdir -p /home/spot/.config/pipewire/pipewire.conf.d
+ln -s /usr/share/examples/wireplumber/10-wireplumber.conf /home/spot/.config/pipewire/pipewire.conf.d/
+ln -s /usr/share/examples/pipewire/20-pipewire-pulse.conf /home/spot/.config/pipewire/pipewire.conf.d/
 
 # Install Network Manager
 #
@@ -118,7 +143,7 @@ ln -s /etc/sv/ufw /var/service
 
 # Bluetooth
 # bluez bluez-alsa blueman
-echo blueman bluez libspa-bluetooth \
+echo bluez blueman bluez-obex bluez-deprecated libspa-bluetooth \
 | xargs -n1 xbps-install -y
 ln -s /etc/sv/bluetoothd /var/service
 ln -s /etc/sv/bluetoothd /etc/runit/runsvdir/default/bluetoothd
@@ -139,7 +164,19 @@ done
 EOF
 
 chmod +x /usr/local/bin/start-up
- 
+
+# Start poorercputemp
+mkdir -p /home/spot/.config/autostart
+touch /home/spot/.config/autostart/poorercputemp.desktop
+cat <<'EOF' >> /home/spot/.config/autostart/poorercputemp.desktop
+[Desktop Entry]
+Encoding=UTF-8
+Type=Application
+NoDisplay=true
+Name=poorercputemp
+Exec=sudo poorercputemp
+EOF
+
 # Setup autologin on tty1
 #
 # cp -a /etc/X11/xinit/xinitrc /root/.xinitrc
@@ -172,6 +209,10 @@ ln -s /etc/sv/agetty-autologin-tty1 /etc/runit/runsvdir/default/agetty-autologin
 # ln -s /etc/sv/dbus /var/service
 ln -s /etc/sv/dbus /etc/runit/runsvdir/default/dbus
 ln -s /etc/sv/ntpd /etc/runit/runsvdir/default/ntpd  # /etc/sv/nptd is symlink to chronyd
+
+# elogind
+xbps-install -y elogind
+ln -s /etc/sv/elogind /var/service/
 
 # Auto-editing .xinitrc to use xfce4 instead of twm
 # Because I'm using exec here the script will end there so no xterms started
@@ -230,6 +271,65 @@ echo "/usr/local/bin/start-up &" >>/root/.xinitrc
 echo "exec xfce4-session" >>/root/.xinitrc
 #echo "# exec xfce4-session" >>/root/.xinitrc  # removed exec to allow dropping out of Xorg to console
 
+## .xinitrc
+cat <<'EOF' >> /home/spot/.xinitrc
+#!/bin/sh
+
+# .xinitrc to use in xfce
+#
+touch /home/spot/.xinitrc
+cat <<'EOF' >> /home/spot/.xinitrc
+#!/bin/sh
+
+userresources="$HOME/.Xresources"
+usermodmap="$HOME/.Xmodmap"
+sysresources="$xinitdir/.Xresources"
+sysmodmap="$xinitdir/.Xmodmap"
+
+# merge in defaults and keymaps
+
+if [ -f "$sysresources" ]; then
+    if [ -x /usr/bin/cpp ] ; then
+        "$xrdb" -merge "$sysresources"
+    else
+        "$xrdb" -nocpp -merge "$sysresources"
+    fi
+fi
+
+if [ -f "$sysmodmap" ]; then
+    "$xmodmap" "$sysmodmap"
+fi
+
+if [ -f "$userresources" ]; then
+    if [ -x /usr/bin/cpp ] ; then
+        "$xrdb" -merge "$userresources"
+    else
+        "$xrdb" -nocpp -merge "$userresources"
+    fi
+fi
+
+if [ -f "$usermodmap" ]; then
+    "$xmodmap" "$usermodmap"
+fi
+
+# start some nice programs
+
+if [ -d "$xinitdir"/xinitrc.d ] ; then
+	for f in "$xinitdir/xinitrc.d"/?*.sh ; do
+		[ -x "$f" ] && . "$f"
+	done
+	unset f
+fi
+
+EOF
+
+sed -i '51,$d' /home/spot/.xinitrc
+echo "pipewire &" >>/home/spot/.xinitrc
+echo "pipewire-pulse &" >>/home/spot/.xinitrc
+echo "/usr/local/bin/start-up &" >>/home/spot/.xinitrc
+echo "exec xfce4-session" >>/home/spot/.xinitrc
+#echo "# exec xfce4-session" >>/home/spot/.xinitrc  # removed exec to allow dropping out of Xorg to console
+
 # ~/.Xresources for larger xterm uxterm fonts
 cat <<'XRESOURCES' > ~/.Xresources
 Xft*antialias: true
@@ -253,11 +353,44 @@ UXTerm*faceName: Monospace Regular
 UXTerm*faceSize: 9
 XRESOURCES
 
+# /home/spot/.Xresources for larger xterm uxterm fonts
+touch  /home/spot/.Xresources
+cat <<'XRESOURCES' > /home/spot/.Xresources
+Xft*antialias: true
+Xft*autohint: true
+XTerm*background: black
+XTerm*foreground: grey
+XTerm*cursorColor: grey
+XTerm.vt100.geometry: 95x25+150
+XTerm.vt100.scrollBar: true
+XTerm.vt100.scrollbar.width: 8
+XTerm*faceName: Monospace Regular
+XTerm*faceSize: 9
+
+UXft*antialias: true
+UXft*autohint: true
+UXTerm*background: black
+UXTerm*foreground: grey
+UXTerm*cursorColor: grey
+UXTerm.vt100.geometry: 84x25+150
+UXTerm*faceName: Monospace Regular
+UXTerm*faceSize: 9
+XRESOURCES
+
+# root
 # Change to fancy prompt via .bashrc
 sed -i '51,$d' ~/.bashrc
 echo "pfetch" >> ~/.bashrc
 VAR='PS1="\[\e[0;36m\]┌──\[\e[0m\][ \[\e[0;33m\]\u\[\e[0m\]\[\e[0;32m\]@\[\e[0;36m\]\h\[\e[0m\] ] [ \[\e[0;36m\]\t\[\e[0m\] ]\n\[\e[0;36m\]├── \[\e[0;32m\]\w\[\e[0;36m\]\n\[\e[0;36m\]└>\[\e[0m\]" '
 echo "$VAR" >> ~/.bashrc
+
+# spot
+# Change to fancy prompt via .bashrc
+touch /home/spot/.bashrc
+sed -i '51,$d' /home/spot/.bashrc
+echo "pfetch" >> /home/spot/.bashrc
+VAR='PS1="\[\e[0;36m\]┌──\[\e[0m\][ \[\e[0;33m\]\u\[\e[0m\]\[\e[0;32m\]@\[\e[0;36m\]\h\[\e[0m\] ] [ \[\e[0;36m\]\t\[\e[0m\] ]\n\[\e[0;36m\]├── \[\e[0;32m\]\w\[\e[0;36m\]\n\[\e[0;36m\]└>\[\e[0m\]" '
+echo "$VAR" >> /home/spot/.bashrc
 
 ## USER CONFIGS: Copy main configs to /etc/skel for all normal users later added
 #
@@ -321,20 +454,20 @@ chmod 755 /bin
 chmod 755 /lib
 
 # add sudo -spot to .desktop files
-cd /usr/share/applications
-sed -i 's/^Exec=/&sudo -uspot /' octoxbps.desktop
-sed -i 's/^Exec=/&sudo -uspot /' octoxbps-notifier.desktop
+# cd /usr/share/applications
+# sed -i 's/^Exec=/&sudo -uspot /' octoxbps.desktop
+# sed -i 's/^Exec=/&sudo -uspot /' octoxbps-notifier.desktop
 
 # Copy .desktop files to /root/.local/share/applications and add run-as-spot to the Exec command
 #
-##mkdir -p /root/.local/share/applications
-##cp /usr/share/applications/octoxbps.desktop  /root/.local/share/applications/octoxbps.desktop
-##cp /usr/share/applications/octoxbps-notifier.desktop  /root/.local/share/applications/octoxbps-notifier.desktop
+mkdir -p /root/.local/share/applications
+cp /usr/share/applications/octoxbps.desktop  /root/.local/share/applications/octoxbps.desktop
+cp /usr/share/applications/octoxbps-notifier.desktop  /root/.local/share/applications/octoxbps-notifier.desktop
 
-##cd /root/.local/share/applications/
-##sed -i 's/^Exec=/&run-as-spot /' octoxbps.desktop
-##sed -i 's/^Exec=/&run-as-spot /' octoxbps-notifier.desktop
-##cp /root/.local/share/applications/octoxbps-notifier.desktop /etc/xdg/autostart/octoxbps-notifier.desktop
+cd /root/.local/share/applications/
+sed -i 's/^Exec=/&run-as-spot /' octoxbps.desktop
+sed -i 's/^Exec=/&run-as-spot /' octoxbps-notifier.desktop
+cp /root/.local/share/applications/octoxbps-notifier.desktop /etc/xdg/autostart/octoxbps-notifier.desktop
 
 cp /usr/share/applications/thunar.desktop /usr/share/applications/thunar-spot.desktop
 sed -i 's/^Exec=/&sudo -uspot /' thunar-spot.desktop
