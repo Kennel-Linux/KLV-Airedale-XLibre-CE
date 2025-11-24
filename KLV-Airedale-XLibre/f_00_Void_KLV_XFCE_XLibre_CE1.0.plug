@@ -262,6 +262,7 @@ if [ -d "$xinitdir"/xinitrc.d ] ; then
 	done
 	unset f
 fi
+
 EOF
 
 sed -i '51,$d' /root/.xinitrc
@@ -270,10 +271,6 @@ echo "pipewire-pulse &" >>/root/.xinitrc
 echo "/usr/local/bin/start-up &" >>/root/.xinitrc 
 echo "exec xfce4-session" >>/root/.xinitrc
 #echo "# exec xfce4-session" >>/root/.xinitrc  # removed exec to allow dropping out of Xorg to console
-
-## .xinitrc
-cat <<'EOF' >> /home/spot/.xinitrc
-#!/bin/sh
 
 # .xinitrc to use in xfce
 #
