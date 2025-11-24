@@ -502,6 +502,7 @@ wget -c https://github.com/sofijacom/xbps_packages/raw/refs/heads/main/save2flas
 wget -c https://github.com/sofijacom/xbps_packages/raw/refs/heads/main/poorercputemp-0.2_1.x86_64.xbps
 wget -c https://github.com/sofijacom/xbps_packages/raw/refs/heads/main/dcontrol-2.0_1.x86_64.xbps
 wget -c https://github.com/sofijacom/xbps_packages/raw/refs/heads/main/KLV-calendar-2.5_1.x86_64.xbps
+wget -c https://github.com/sofijacom/xbps_packages/raw/refs/heads/main/Octoxbps-cleaner-cache-1.1.2_1.noarch.xbps
 
 #### Install KLV custom packages ####
 
@@ -587,6 +588,9 @@ xbps-install -y --repository=Build/ dcontrol-2.0_1
 
 # Install KLV-calendar
 xbps-install -y --repository=Build/ KLV-calendar-2.5_1
+
+# Octoxbps-cleaner-cache
+xbps-install -y --repository=Build/ Octoxbps-cleaner-cache-1.1.2_1
 
 # Set execution permissions recursivly for binaries and scripts
 chmod +x -R /usr/local/bin
